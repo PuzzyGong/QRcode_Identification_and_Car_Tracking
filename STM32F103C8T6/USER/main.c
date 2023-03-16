@@ -191,7 +191,6 @@ void Maincycle_Handler()
 		if(state != STOP && state != TEST__V_PID_ONLY)
 			state_store = state;
 	}
-					
 	else if(TEST__V_PID_ONLY_button == 1)
 	{
 	    state = TEST__V_PID_ONLY;
