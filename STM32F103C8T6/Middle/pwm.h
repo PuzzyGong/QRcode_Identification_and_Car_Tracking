@@ -7,5 +7,6 @@
 
 void straight_set(float f1, float f2);
 void straight_add(float f1, float f2);
+void straight_read(float* f1, float* f2);
 
 #endif

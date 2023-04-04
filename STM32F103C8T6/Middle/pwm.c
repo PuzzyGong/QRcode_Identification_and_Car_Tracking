@@ -35,3 +35,9 @@ void straight_add(float f1, float f2)
 	if(pwm2 < 0) PBout(12) = 0, PBout(13) = 1, TIM_SetCompare4(TIM1, (uint16_t)pwm2);
     else         PBout(12) = 1, PBout(13) = 0, TIM_SetCompare4(TIM1, (uint16_t)pwm2);
 }
+
+void straight_read(float* f1, float* f2)
+{
+    *f1 = pwm1;
+	*f2 = pwm2;
+}

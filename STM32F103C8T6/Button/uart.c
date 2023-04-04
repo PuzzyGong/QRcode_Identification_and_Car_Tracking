@@ -21,7 +21,7 @@ static void*	R_DMA_Channel_x			[5]	=	{	DMA1_Channel5,			DMA1_Channel6,			DMA1_Ch
 
 
 #define 	 RX_PRE_MAX					200
-static u8	 rx_pre						[5]	[RX_PRE_MAX] = {0};
+static u8	 rx_pre					 	[5]	[RX_PRE_MAX] = {0};
 
 static u32   bauds						[5] = 	{0,0,0,0,0};
 static void* tx_ptrs 					[5] = 	{0,0,0,0,0};

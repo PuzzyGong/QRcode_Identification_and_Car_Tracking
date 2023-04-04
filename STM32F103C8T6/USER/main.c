@@ -6,10 +6,10 @@
 //暂时待机（静止）状态的加入，
 //
 
-PID v1_pid;
-PID v2_pid;
-PID angle_pid;
-PID s_pid;
+PID v1_____pid;
+PID v2_____pid;
+PID angle__pid;
+PID s______pid;
 
 int main(void)
 {	
@@ -34,10 +34,10 @@ int main(void)
 	
 	//****************************** STATE_AND_PID ******************************//
 	
-	PID_init(&v1_pid,    0, 0, 0, 0, 1);
-	PID_init(&v2_pid,    0, 0, 0, 0, 1);
-	PID_init(&angle_pid, 0, 0, 0, 0, 1);
-	PID_init(&s_pid,     0, 0, 0, 0, 1);
+	PID_init(&v1_____pid, 0, 0, 0, 0, 1);
+	PID_init(&v2_____pid, 0, 0, 0, 0, 1);
+	PID_init(&angle__pid, 0, 0, 0, 0, 1);
+	PID_init(&s______pid, 0, 0, 0, 0, 1);
 	pwm_init();
 
     //****************************** OTHERS ******************************//
@@ -66,61 +66,83 @@ void Maincycle_Handler()
 		STOP,
 		TEST__V_PID_ONLY,
 	    MOVE,
+		PRESTILL,
 		STILL
-	}state = MOVE, state_store = MOVE;
+	}state = STILL, state_store = STILL;
+	static int state_cnt1 = 0, state_cnt2 = 0;
 
 	static char stop_button = 1;
 	static char TEST__V_PID_ONLY_button = 0;
+
 	
-	static float MOVE_to_STILL_delta_angle = 0;
-	static float MOVE_to_STILL_delta_s = 0;
-	static float STILL_to_MOVE_delta_s = 0;
-	static float MOVE_between_STILL_cnt = 0;
-	static float MOVE_between_STILL_cnt_max = 0;
+	static float cntmax1 = 0;
+	static float sThr________MOVE_PRESTILL_STILL = 0;
+
+	//
+#define          sMin________MOVE_to_PRESTILL         sThr________MOVE_PRESTILL_STILL
+#define          cntmax______MOVE_to_PRESTILL         cntmax1
+	
+	static float angleDMax___MOVE_to_STILL = 0;
+	static float sDMax_______MOVE_to_STILL = 0;
+#define          cntmax______MOVE_to_STILL            cntmax1
+	
+	//
+#define          sMax________PRESTILL_to_MOVE         sThr________MOVE_PRESTILL_STILL
+#define          cntmax______PRESTILL_to_MOVE         cntmax1
+	
+	static float cntmax______PRESTILL_to_STILL = 0;	
+	
+	//
+	static float sDMin_______STILL_to_MOVE = 0;
+#define          sMax________STILL_to_MOVE            sThr________MOVE_PRESTILL_STILL
+#define          cntmax______STILL_to_MOVE            cntmax1
 	
 	//****************************** PID ******************************//
 	
 	//----- 速度（小车速度）
-	static float P_v = 0, I_v = 0, D_v = 0;
-	static float a_v1 = 0,     a_v2= 0;
+	static float v______P = 0,         v______I = 0,         v______D = 0;
+	static float v1_____a = 0,         v2_____a = 0;
 	
-	static float v1 = 0,       v2 = 0;
+	static float v1 = 0,               v2 = 0;
 
-	static float pwm1 = 0,     pwm2 = 0;
+	static float pwm1 = 0,             pwm2 = 0;
 	static float pwm_max = 0;
 
 	//----- 角偏（小车指向目标物体的方向为x轴正向，小车朝向为向量）
-	static float P_angle = 0, I_angle = 0, D_angle = 0;
-	static float a_angle = 0;
+	static float angle__P = 0,         angle__I = 0,         angle__D = 0;
+	static float angle__a = 0;
 
-	static int angle_int[10] = {0};
+	static int   angleInt[10] = {0};
 	static float average_filter_num = 0;
 	static float angle = 0;
 
-	static float a_vd = 0;         // v_differ 右轮为正，左轮为负
-	static float a_vd_max = 0;
+	static float vd_____a = 0;         // v_differ 右轮为正，左轮为负
+	static float vd_____a_max = 0;
 
-	//----- 距离（小车离目标物体的距离的反比）
-	static float P_s = 0, I_s = 0, D_s = 0;
-	static float a_s = 0;
+	//----- 距离（小车离目标物体的距离）
+	static float s______P = 0,         s______I = 0,         s______D = 0;
+	static float s______a = 0;
 
-	static int s_int[10] = {0};
+	static int   sInt[10] = {20, 20, 20, 20, 20, 20, 20, 20, 20, 20};
 //  static int average_filter_num = 0;
-	static float s = 0;
+	static float s = 20;
 
-	static float a_vc = 0;        // v_common
-	static float a_vc_max = 0;
-	
-	static float min_enable_pid__s = 0;
-	static float min_enable_pid__delta_s = 0;
+	static float vc_____a = 0;         // v_common
+	static float vc_____a_max = 0;
 
 	//****************************** OTHERS ******************************//
-	static float a_v1_temp = 0, a_v2_temp = 0;
-	static float a_v__peradd = 0;
+	static float vselfc_a = 0, vselfd_a = 0;
+	
+	static float v1_____a__temp = 0, v2_____a__temp = 0;
+	static float v______a__peradd = 0;
+	
+	float pwmtotal1 = 0, pwmtotal2 = 0;
 	
     //*********|\********|\********|\********|\********|\********|\********|\********|\********|\********|\*********
     //*********|*********|*********|*********|*********|*********|*********|*********|*********|*********|**********
     //*********|*********|*********|*********|*********|*********|*********|*********|*********|*********|**********
+	
+	static int first = 0;
 	
 	CPUoccupationRate_Calculatestart();
 	TIM_ClearITPendingBit(TIM4, TIM_IT_Update);
@@ -132,52 +154,68 @@ void Maincycle_Handler()
 		
     //****************************** UART_R ******************************//
 	
-	if(trans_bt_R(3,    &stop_button, 
-		                &TEST__V_PID_ONLY_button, 0, 
-		                &P_v,              &I_v,              &D_v,              &pwm_max,          0,
-					    &P_angle,          &I_angle,          &D_angle,          &a_vd_max,         0,
-					    &P_s,              &I_s,              &D_s,              &a_vc_max,         &a_s,
-					    &a_v1,             
-	                    &min_enable_pid__s,
-	                    &STILL_to_MOVE_delta_s,
-	                    &MOVE_to_STILL_delta_angle, 
-	                    &MOVE_to_STILL_delta_s, 
-	                    &MOVE_between_STILL_cnt_max,
-					    &average_filter_num, 
-	                    &a_v__peradd, 0, 0,
-					    0, 0, 0, 0, 0 ))
+	if(trans_bt_R(3,      &stop_button, 
+		                  &TEST__V_PID_ONLY_button, 0, 
+		                  &v______P,         &v______I,         &v______D,         &pwm_max,          0,
+					      &angle__P,         &angle__I,         &angle__D,         &vd_____a_max,     0,
+					      &s______P,         &s______I,         &s______D,         &vc_____a_max,     &s______a,
+					      &vselfc_a,
+	                      &vselfd_a,
+	                      &sDMin_______STILL_to_MOVE,
+	                      &angleDMax___MOVE_to_STILL, 
+	                      &sDMax_______MOVE_to_STILL, 
+	                      &cntmax1,
+					      &average_filter_num, 
+	                      &v______a__peradd, 
+	                      &sThr________MOVE_PRESTILL_STILL, 
+	                      &cntmax______PRESTILL_to_STILL,
+					      0, 0, 0, 0, 0 ))
 	{
         ;
 	}
-		               /*P_v     = 0       ,I_v     = 0       ,D_v     = 0       ,*/pwm_max  = 7000           ;
-					   /*P_angle = 0       ,I_angle = 0       ,D_angle = 0       ,a_vd_max = 0              ;*/
-					   /*P_s     = 0       ,I_s     = 0       ,D_s     = 0       ,a_vc_max = 0      ,a_s = 0;*/	
-//					    a_v1,             
-//	                    min_enable_pid__s,
-//	                    min_enable_pid__delta_s,
-//	                    MOVE_to_STILL_delta_angle, 
-//	                    MOVE_to_STILL_delta_s, 
-//	                    MOVE_to_STILL_cnt_max,
+                      if(first == 0)
+					  {
+	                      first = 1;
+						  
+						  stop_button = 0;
+		                  TEST__V_PID_ONLY_button = 0;
+		                  v______P = 10;     v______I = 3;      v______D = 0;      pwm_max = 7000;         
+					      angle__P = -0.02;  angle__I = 0;      angle__D = 0;      vd_____a_max = 10;   
+					      s______P = 1;      s______I = 0;      s______D = 0;      vc_____a_max = 40;  s______a = 20;
+					      vselfc_a = 0;
+	                      vselfd_a = 0;
+	                      sDMin_______STILL_to_MOVE = 10;
+	                      angleDMax___MOVE_to_STILL = 1000;
+	                      sDMax_______MOVE_to_STILL = 5;
+	                      cntmax1 = 10;
+					      average_filter_num = 1;
+	                      v______a__peradd = 5;
+	                      sThr________MOVE_PRESTILL_STILL = 80;
+	                      cntmax______PRESTILL_to_STILL = 300;
+				      }
+					   
+
 	
-	PID_init(&v1_pid,    P_v,               I_v,               D_v,               pwm_max,    0);
-	PID_init(&v2_pid,    P_v,               I_v,               D_v,               pwm_max,    0);
-	PID_init(&angle_pid, P_angle,           I_angle,           D_angle,           a_vd_max,   0);
-	PID_init(&s_pid,     P_s,               I_s,               D_s,               a_vc_max,   0);
+	PID_init(&v1_____pid, v______P,          v______I,          v______D,          pwm_max,        0);
+	PID_init(&v2_____pid, v______P,          v______I,          v______D,          pwm_max,        0);
+	PID_init(&angle__pid, angle__P,          angle__I,          angle__D,          vd_____a_max,   0);
+	PID_init(&s______pid, s______P,          s______I,          s______D,          vc_____a_max,   0);
     
 	//****************************** SENSORS ******************************//
 	
 	for(i = 10 - 1; i > 0; i--)
 	{
-	    angle_int[i] = angle_int[i - 1];
-		    s_int[i] =     s_int[i - 1];
+	    angleInt[i] = angleInt[i - 1];
+		    sInt[i] =     sInt[i - 1];
 	}
-	trans_others_R(2, &(angle_int[0]), &(s_int[0]), 0,0,0,0,0,0,0,0);
+	trans_others_R(2, &(angleInt[0]), &(sInt[0]), 0,0,0,0,0,0,0,0);
+	if(sInt[0] == 0) sInt[0] = 20;
 	angle = 0;
 	    s = 0;
 	for(i = 0; i < average_filter_num; i++)
 	{
-	    angle += (float)(angle_int[i] / average_filter_num);
-		    s += (float)(    s_int[i] / average_filter_num);
+	    angle += (float)(angleInt[i] / average_filter_num);
+		    s += (float)(    sInt[i] / average_filter_num);
 	}
 	
     v1 =    ic_getdata(2) - 1  ;
@@ -185,120 +223,190 @@ void Maincycle_Handler()
 	
 	//****************************** STATE_AND_PID ******************************//
 	
-	if(stop_button == 1)
+	if     (            stop_button == 1)
 	{
-	    state = STOP;
-		if(state != STOP && state != TEST__V_PID_ONLY)
-			state_store = state;
+	        state  = STOP;
+		 if(state != STOP && state != TEST__V_PID_ONLY)
+			   state_store = state;
 	}
 	else if(TEST__V_PID_ONLY_button == 1)
 	{
-	    state = TEST__V_PID_ONLY;
-		if(state != STOP && state != TEST__V_PID_ONLY)
-			state_store = state;
+	                         state  = TEST__V_PID_ONLY;
+		 if(state != STOP && state != TEST__V_PID_ONLY)
+			   state_store = state;
+	}
+	else if(state == STOP || state == TEST__V_PID_ONLY)
+	{
+		PID_init(&v1_____pid, v______P,          v______I,          v______D,          pwm_max,        1);
+		PID_init(&v2_____pid, v______P,          v______I,          v______D,          pwm_max,        1);
+		PID_init(&angle__pid, angle__P,          angle__I,          angle__D,          vd_____a_max,   1);
+		PID_init(&s______pid, s______P,          s______I,          s______D,          vc_____a_max,   1);
+		//state = state_store;
+		state = STILL;
+	}
+		
+	
+	if     (state == STOP)
+	{
+		//STATE_CHANGE
+		
+		
+		straight_set(0, 0);	
 	}
 	
-	else if(state == STOP || state == TEST__V_PID_ONLY)
-		state = state_store;
-	
-	
-	if(cnt % 10 == 0)
+	else if(state == TEST__V_PID_ONLY)
 	{
-		     if(state == STOP)
-		{
-			
-			straight_set(0, 0);	
-		}
+		//STATE_CHANGE
 		
-		else if(state == TEST__V_PID_ONLY)
-		{
-			//STATE_CHANGE
-			
-			
-			//PID_0->1
-			a_v2 = a_v1;
-			
-			//PID_2
-			pwm1 = PID_calc2(&v1_pid, v1, a_v1);
-			pwm2 = PID_calc2(&v2_pid, v2, a_v2);
-			
-			//PID_END
-			straight_add(pwm1, pwm2);
-		}
-		
-		else if(state == MOVE)
-		{
-			//STATE_CHANGE
-			if(angle - a_angle <  MOVE_to_STILL_delta_angle && 
-			   angle - a_angle > -MOVE_to_STILL_delta_angle && 
-				   s -     a_s <      MOVE_to_STILL_delta_s && 
-				   s -     a_s >     -MOVE_to_STILL_delta_s )
-				if(MOVE_between_STILL_cnt++ > MOVE_between_STILL_cnt_max)
-				{
-					MOVE_between_STILL_cnt = 0;
-					
-					PID_init(&v1_pid,    P_v,               I_v,               D_v,               pwm_max,    1);
-					PID_init(&v2_pid,    P_v,               I_v,               D_v,               pwm_max,    1);
-					PID_init(&angle_pid, P_angle,           I_angle,           D_angle,           a_vd_max,   1);
-					PID_init(&s_pid,     P_s,               I_s,               D_s,               a_vc_max,   1);
-					state = STILL;
-				}
-			
-			//PID_1
-			    		
-			if( s > min_enable_pid__s )
-			{
-				a_vd = PID_calc1(&angle_pid, angle, a_angle);
-			    a_vc = PID_calc1(&s_pid,     s,     a_s);
-			} 
 
-			//PID_1->2
-			a_v1_temp = a_vc - a_vd, a_v2_temp = a_vc + a_vd;
-			
-			//速度消抖
-			     if(a_v1 > a_v1_temp + a_v__peradd) a_v1 -= a_v__peradd;
-			else if(a_v1 < a_v1_temp - a_v__peradd) a_v1 += a_v__peradd;
-			else                                    a_v1  = a_v1_temp;
-			
-			     if(a_v2 > a_v2_temp + a_v__peradd) a_v2 -= a_v__peradd;
-			else if(a_v2 < a_v2_temp - a_v__peradd) a_v2 += a_v__peradd;
-			else                                    a_v2  = a_v2_temp;
-			
-			//PID_2
-			pwm1 = PID_calc2(&v1_pid, v1, a_v1);
-			pwm2 = PID_calc2(&v2_pid, v2, a_v2);
-			
-			//PID_END
-			straight_add(pwm1, pwm2);	
+		//PID_1->2
+
+		if     (vselfc_a  < 0 && vselfd_a  < 0)
+		{
+		    v1_____a = (vselfc_a - vselfd_a > 0) ? 0 : vselfc_a - vselfd_a;
+			v2_____a =  vselfc_a;
+		}
+		else if(vselfc_a >= 0 && vselfd_a  < 0)
+		{
+		    v1_____a = (vselfc_a + vselfd_a < 0) ? 0 : vselfc_a + vselfd_a;
+			v2_____a =  vselfc_a;  
+		}
+		else if(vselfc_a  < 0 && vselfd_a >= 0)
+		{
+		    v2_____a = (vselfc_a + vselfd_a > 0) ? 0 : vselfc_a + vselfd_a;
+			v1_____a =  vselfc_a;		    
+		}
+		else if(vselfc_a >= 0 && vselfd_a >= 0)
+		{
+		    v2_____a = (vselfc_a - vselfd_a < 0) ? 0 : vselfc_a - vselfd_a;
+			v1_____a =  vselfc_a;
 		}
 		
-		else if(state == STILL)
+		//PID_2
+		pwm1 = PID_calc2(&v1_____pid, v1, v1_____a);
+		pwm2 = PID_calc2(&v2_____pid, v2, v2_____a);
+		
+		//PID_END
+		straight_add(pwm1, pwm2);
+	}
+	
+	else if(state == MOVE)
+	{
+		//STATE_CHANGE
+		if     (angle - angle__a <  angleDMax___MOVE_to_STILL && 
+		        angle - angle__a > -angleDMax___MOVE_to_STILL && 
+		        s     - s______a <  sDMax_______MOVE_to_STILL && 
+		        s     - s______a > -sDMax_______MOVE_to_STILL )
 		{
-			//STATE_CHANGE
-			if( s -     a_s >      STILL_to_MOVE_delta_s || 
-				s -     a_s <     -STILL_to_MOVE_delta_s  )
-				if(MOVE_between_STILL_cnt++ > MOVE_between_STILL_cnt_max)
-				{
-					MOVE_between_STILL_cnt = 0;
-					
-					PID_init(&v1_pid,    P_v,               I_v,               D_v,               pwm_max,    1);
-					PID_init(&v2_pid,    P_v,               I_v,               D_v,               pwm_max,    1);
-					PID_init(&angle_pid, P_angle,           I_angle,           D_angle,           a_vd_max,   1);
-					PID_init(&s_pid,     P_s,               I_s,               D_s,               a_vc_max,   1);
-					state = MOVE;
-				}
+			if(state_cnt1++ > cntmax1)
+			{
+				state_cnt1 = 0;
 				
-			//PID_END
-			straight_set(0, 0); 
+				PID_init(&v1_____pid, v______P,          v______I,          v______D,          pwm_max,        1);
+				PID_init(&v2_____pid, v______P,          v______I,          v______D,          pwm_max,        1);
+				PID_init(&angle__pid, angle__P,          angle__I,          angle__D,          vd_____a_max,   1);
+				PID_init(&s______pid, s______P,          s______I,          s______D,          vc_____a_max,   1);
+				state = STILL;
+			}			
 		}
-    }
+		else if(s > sMin________MOVE_to_PRESTILL )
+			if(state_cnt2++ > cntmax1)
+			{
+				state_cnt2 = 0;
+				
+				state = PRESTILL;
+			}
+		
+		//PID_1
+		if(cnt % 10 == 0)
+		{
+			vd_____a =  PID_calc1(&angle__pid, angle, angle__a);
+			vc_____a = -PID_calc1(&s______pid, s,     s______a);
+		}
+
+		//PID_1->2
+		v1_____a__temp = vc_____a - vd_____a, v2_____a__temp = vc_____a + vd_____a;
+		
+		//速度消抖
+			 if(v1_____a > v1_____a__temp + v______a__peradd) v1_____a -= v______a__peradd;
+		else if(v1_____a < v1_____a__temp - v______a__peradd) v1_____a += v______a__peradd;
+		else                                                  v1_____a  = v1_____a__temp;
+		
+			 if(v2_____a > v2_____a__temp + v______a__peradd) v2_____a -= v______a__peradd;
+		else if(v2_____a < v2_____a__temp - v______a__peradd) v2_____a += v______a__peradd;
+		else                                                  v2_____a  = v2_____a__temp;
+		
+		//PID_2
+		pwm1 = PID_calc2(&v1_____pid, v1, v1_____a);
+		pwm2 = PID_calc2(&v2_____pid, v2, v2_____a);
+		
+		//PID_END
+		straight_add(pwm1, pwm2);	
+	}
+	
+	else if(state == PRESTILL)
+	{
+		if     (s < sMax________PRESTILL_to_MOVE )
+		{
+			if(state_cnt2++ > cntmax1)
+			{
+				state_cnt2 = 0;
+				
+				state = MOVE;
+			}
+		}
+		else
+		{
+			if(state_cnt1++ > cntmax______PRESTILL_to_STILL)
+			{
+				state_cnt1 = 0;
+				
+				PID_init(&v1_____pid, v______P,          v______I,          v______D,          pwm_max,        1);
+				PID_init(&v2_____pid, v______P,          v______I,          v______D,          pwm_max,        1);
+				PID_init(&angle__pid, angle__P,          angle__I,          angle__D,          vd_____a_max,   1);
+				PID_init(&s______pid, s______P,          s______I,          s______D,          vc_____a_max,   1);
+				state = STILL;
+			}		
+		}
+		
+		//PID_2
+		pwm1 = PID_calc2(&v1_____pid, v1, v1_____a);
+		pwm2 = PID_calc2(&v2_____pid, v2, v2_____a);
+		
+		//PID_END
+		straight_add(pwm1, pwm2);
+	}
+	
+	else if(state == STILL)
+	{ 
+		//STATE_CHANGE
+		if( (s     - s______a >  sDMin_______STILL_to_MOVE || 
+			 s     - s______a < -sDMin_______STILL_to_MOVE ) && 
+		     s                <  sMax________PRESTILL_to_MOVE )
+			if(state_cnt1++ > cntmax1)
+			{
+				state_cnt1 = 0;
+				
+				PID_init(&v1_____pid, v______P,          v______I,          v______D,          pwm_max,        1);
+				PID_init(&v2_____pid, v______P,          v______I,          v______D,          pwm_max,        1);
+				PID_init(&angle__pid, angle__P,          angle__I,          angle__D,          vd_____a_max,   1);
+				PID_init(&s______pid, s______P,          s______I,          s______D,          vc_____a_max,   1);
+				state = MOVE;
+			}
+			
+		//PID_END
+		straight_set(0, 0); 
+	}
+
 		
     //****************************** UART_T ******************************//
 
+    straight_read(&pwmtotal1, &pwmtotal2);
+	
 	if(cnt % 10 == 0)
-		trans_bt_T(3, 0, 0, 0, v1,      v2,       a_v1,     a_v2,       state,
+		trans_bt_T(3, 0, 0, 0, v1,      v2,       v1_____a, v2_____a,   state,
 	                           pwm1,    pwm2,     CPUoccupationRate_Calculatefinish(), angle, s,
-						       0, 0, 0, 0, 0,
+						       pwmtotal1, pwmtotal2, 0, 0, 0,
 						       0, 0, 0, 0, 0,
 							   0, 0, 0, 0, 0,
 							   0, 0, 0, 0, 0 );
