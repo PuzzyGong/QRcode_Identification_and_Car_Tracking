@@ -59,6 +59,9 @@ void Maincycle_Handler()
     //*********|*********|*********|*********|*********|*********|*********|*********|*********|*********|**********
     //*********|*********|*********|*********|*********|*********|*********|*********|*********|*********|**********
     //********\|********\|********\|********\|********\|********\|********\|********\|********\|********\|**********
+	static int rint1 = 0;
+	static int rint2 = 0;
+	static int rint3 = 0;
 	
 	//****************************** STATE ******************************//
 
@@ -68,13 +71,13 @@ void Maincycle_Handler()
 	    MOVE,
 		PRESTILL,
 		STILL
-	}state = STILL, state_store = STILL;
+	}state = MOVE, state_store = MOVE;
 	static int state_cnt1 = 0, state_cnt2 = 0;
 
 	static char stop_button = 1;
 	static char TEST__V_PID_ONLY_button = 0;
+	static int move_button = 0;
 
-	
 	static float cntmax1 = 0;
 	static float sThr________MOVE_PRESTILL_STILL = 0;
 
@@ -90,7 +93,7 @@ void Maincycle_Handler()
 #define          sMax________PRESTILL_to_MOVE         sThr________MOVE_PRESTILL_STILL
 #define          cntmax______PRESTILL_to_MOVE         cntmax1
 	
-	static float cntmax______PRESTILL_to_STILL = 0;	
+	static float cntmax______PRESTILL_to_STILL = 0;
 	
 	//
 	static float sDMin_______STILL_to_MOVE = 0;
@@ -121,11 +124,11 @@ void Maincycle_Handler()
 
 	//----- 距离（小车离目标物体的距离）
 	static float s______P = 0,         s______I = 0,         s______D = 0;
-	static float s______a = 0;
+	static int   s______a = 0;
 
-	static int   sInt[10] = {20, 20, 20, 20, 20, 20, 20, 20, 20, 20};
+	static int   sInt[10] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 20};
 //  static int average_filter_num = 0;
-	static float s = 20;
+	static float s = 0;
 
 	static float vc_____a = 0;         // v_common
 	static float vc_____a_max = 0;
@@ -158,7 +161,7 @@ void Maincycle_Handler()
 		                  &TEST__V_PID_ONLY_button, 0, 
 		                  &v______P,         &v______I,         &v______D,         &pwm_max,          0,
 					      &angle__P,         &angle__I,         &angle__D,         &vd_____a_max,     0,
-					      &s______P,         &s______I,         &s______D,         &vc_____a_max,     &s______a,
+					      &s______P,         &s______I,         &s______D,         &vc_____a_max,     0,//&s______a,
 					      &vselfc_a,
 	                      &vselfd_a,
 	                      &sDMin_______STILL_to_MOVE,
@@ -174,14 +177,14 @@ void Maincycle_Handler()
         ;
 	}
                       if(first == 0)
-					  {
+					  { 
 	                      first = 1;
 						  
 						  stop_button = 0;
 		                  TEST__V_PID_ONLY_button = 0;
 		                  v______P = 10;     v______I = 3;      v______D = 0;      pwm_max = 7000;         
 					      angle__P = -0.02;  angle__I = 0;      angle__D = 0;      vd_____a_max = 10;   
-					      s______P = 1;      s______I = 0;      s______D = 0;      vc_____a_max = 40;  s______a = 20;
+					      s______P = 1;      s______I = 0;      s______D = 0;      vc_____a_max = 40;  //s______a = 20;
 					      vselfc_a = 0;
 	                      vselfd_a = 0;
 	                      sDMin_______STILL_to_MOVE = 10;
@@ -208,8 +211,22 @@ void Maincycle_Handler()
 	    angleInt[i] = angleInt[i - 1];
 		    sInt[i] =     sInt[i - 1];
 	}
-	trans_others_R(2, &(angleInt[0]), &(sInt[0]), 0,0,0,0,0,0,0,0);
-	if(sInt[0] == 0) sInt[0] = 20;
+	if(trans_others_R(2, &rint1, &rint2, &rint3, 0,0,0,0,0,0,0))
+	{
+		if     (rint1 == 1)
+	    {
+		    if(rint2 == 1) state = MOVE;
+		}
+		else if(rint1 == 2)
+		{
+			s______a = rint2;
+		}
+		else if(rint1 == 3)
+		{
+		    angleInt[0] = rint2;
+			sInt[0] = rint3;
+		}
+	}
 	angle = 0;
 	    s = 0;
 	for(i = 0; i < average_filter_num; i++)
@@ -380,19 +397,19 @@ void Maincycle_Handler()
 	else if(state == STILL)
 	{ 
 		//STATE_CHANGE
-		if( (s     - s______a >  sDMin_______STILL_to_MOVE || 
-			 s     - s______a < -sDMin_______STILL_to_MOVE ) && 
-		     s                <  sMax________PRESTILL_to_MOVE )
-			if(state_cnt1++ > cntmax1)
-			{
-				state_cnt1 = 0;
-				
-				PID_init(&v1_____pid, v______P,          v______I,          v______D,          pwm_max,        1);
-				PID_init(&v2_____pid, v______P,          v______I,          v______D,          pwm_max,        1);
-				PID_init(&angle__pid, angle__P,          angle__I,          angle__D,          vd_____a_max,   1);
-				PID_init(&s______pid, s______P,          s______I,          s______D,          vc_____a_max,   1);
-				state = MOVE;
-			}
+//		if( (s     - s______a >  sDMin_______STILL_to_MOVE || 
+//			 s     - s______a < -sDMin_______STILL_to_MOVE ) && 
+//		     s                <  sMax________PRESTILL_to_MOVE )
+//			if(state_cnt1++ > cntmax1)
+//			{
+//				state_cnt1 = 0;
+//				
+//				PID_init(&v1_____pid, v______P,          v______I,          v______D,          pwm_max,        1);
+//				PID_init(&v2_____pid, v______P,          v______I,          v______D,          pwm_max,        1);
+//				PID_init(&angle__pid, angle__P,          angle__I,          angle__D,          vd_____a_max,   1);
+//				PID_init(&s______pid, s______P,          s______I,          s______D,          vc_____a_max,   1);
+//				state = MOVE;
+//			}
 			
 		//PID_END
 		straight_set(0, 0); 
@@ -410,4 +427,8 @@ void Maincycle_Handler()
 						       0, 0, 0, 0, 0,
 							   0, 0, 0, 0, 0,
 							   0, 0, 0, 0, 0 );
+	
+	if(cnt % 10 == 0)
+		printf("state = %d\r\n", state );
+		
 }

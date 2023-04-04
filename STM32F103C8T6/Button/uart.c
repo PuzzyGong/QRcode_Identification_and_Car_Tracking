@@ -200,7 +200,7 @@ void UART4_IRQHandler( void )
 //串口1提供printf功能
 int fputc(int ch, FILE* f)
 {      
-    USART_SendData(USART1, (uint8_t)ch);
-    while( !USART_GetFlagStatus(USART1, USART_FLAG_TC) );	
+    USART_SendData(USART2, (uint8_t)ch);
+    while( !USART_GetFlagStatus(USART2, USART_FLAG_TC) );	
 	return ch;
 }
